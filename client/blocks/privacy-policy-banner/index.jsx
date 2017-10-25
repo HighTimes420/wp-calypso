@@ -53,7 +53,10 @@ class PrivacyPolicyBanner extends Component {
 
 	openPrivacyPolicyDialog = () => this.setState( { showDialog: true } );
 
-	closePrivacyPolicyDialog = () => this.setState( { showDialog: false } );
+	closePrivacyPolicyDialog = () => {
+		this.setState( { showDialog: false } );
+		this.acceptUpdates();
+	};
 
 	render() {
 		const {
@@ -87,7 +90,13 @@ class PrivacyPolicyBanner extends Component {
 					date: moment( this.props.privacyPolicy.modified ).format( 'LL' ),
 				},
 				components: {
-					a: <ExternalLink href="https://automattic.com/privacy/" target="_blank" />,
+					a: (
+						<ExternalLink
+							href="https://automattic.com/privacy/"
+							onClick={ this.acceptUpdates }
+							target="_blank"
+						/>
+					),
 				},
 			}
 		);
@@ -95,11 +104,14 @@ class PrivacyPolicyBanner extends Component {
 		return (
 			<div>
 				<QueryPrivacyPolicy />
+
 				<Banner
 					callToAction={ translate( 'Learn' ) }
 					description={ description }
 					icon="pages"
+					disableHref={ true }
 					onClick={ this.openPrivacyPolicyDialog }
+					onDismiss={ this.openPrivacyPolicyDialog }
 					title={ translate( 'Privacy Policy Updates.' ) }
 				/>
 
