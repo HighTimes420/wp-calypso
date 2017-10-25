@@ -8,6 +8,7 @@ import PropTypes from 'prop-types';
 import React, { Component } from 'react';
 import { connect } from 'react-redux';
 import { localize } from 'i18n-calypso';
+import { get } from 'lodash';
 
 /**
  * Internal dependencies
@@ -46,8 +47,8 @@ class PrivacyPolicyBanner extends Component {
 			return;
 		}
 
-		const { privacyPolicyId, privacyPolicyState } = this.props;
-		this.props.acceptPrivacyPolicy( privacyPolicyId, privacyPolicyState );
+		const { privacyPolicyId, privacyPolicyUserStatus } = this.props;
+		this.props.acceptPrivacyPolicy( privacyPolicyId, privacyPolicyUserStatus );
 	};
 
 	openPrivacyPolicyDialog = () => this.setState( { showDialog: true } );
@@ -55,13 +56,27 @@ class PrivacyPolicyBanner extends Component {
 	closePrivacyPolicyDialog = () => this.setState( { showDialog: false } );
 
 	render() {
-		const { fetchingPreferences, isPolicyAlreadyAccepted, translate } = this.props;
+		const {
+			fetchingPreferences,
+			isPolicyAlreadyAccepted,
+			moment,
+			privacyPolicy,
+			translate,
+		} = this.props;
 
 		if ( fetchingPreferences ) {
 			return null;
 		}
 
+		// check if the user has already accepted/read the privacy policy.
 		if ( isPolicyAlreadyAccepted === true ) {
+			return <QueryPrivacyPolicy />;
+		}
+
+		// check if the current policy is under the notification period.
+		const notifyFrom = moment( get( privacyPolicy, 'notification_period.from' ) );
+		const notifyTo = moment( get( privacyPolicy, 'notification_period.to' ) );
+		if ( ! notifyFrom.isBefore() || ! notifyTo.isAfter() ) {
 			return <QueryPrivacyPolicy />;
 		}
 
@@ -69,7 +84,7 @@ class PrivacyPolicyBanner extends Component {
 			"We're updating our privacy policy on %(date)s. What's new? {{a}}Learn more here{{/a}}.",
 			{
 				args: {
-					date: this.props.moment( this.props.privacyPolicy.modified ).format( 'LL' ),
+					date: moment( this.props.privacyPolicy.modified ).format( 'LL' ),
 				},
 				components: {
 					a: <ExternalLink href="https://automattic.com/privacy/" target="_blank" />,
@@ -91,9 +106,9 @@ class PrivacyPolicyBanner extends Component {
 				<PrivacyPolicyDialog
 					isVisible={ this.state.showDialog }
 					onClose={ this.closePrivacyPolicyDialog }
-					content={ this.props.privacyPolicy.content }
-					title={ this.props.privacyPolicy.title }
-					version={ this.props.privacyPolicy.id }
+					content={ privacyPolicy.content }
+					title={ privacyPolicy.title }
+					version={ privacyPolicy.id }
 				/>
 			</div>
 		);
@@ -102,26 +117,24 @@ class PrivacyPolicyBanner extends Component {
 
 const mapStateToProps = state => {
 	const privacyPolicy = getPrivacyPolicyByEntity( state, AUTOMATTIC_ENTITY );
-	const privacyPolicyState = getPreference( state, PRIVACY_POLICY_PREFERENCE ) || {};
+	const privacyPolicyUserStatus = getPreference( state, PRIVACY_POLICY_PREFERENCE ) || {};
 	const privacyPolicyId = privacyPolicy.id;
 
 	return {
 		fetchingPreferences: isFetchingPreferences( state ),
-		isPolicyAlreadyAccepted: privacyPolicyState[ privacyPolicyId ] || false,
-		privacyPolicyState,
+		isPolicyAlreadyAccepted: privacyPolicyUserStatus[ privacyPolicyId ] || false,
+		privacyPolicyUserStatus,
 		privacyPolicy,
 		privacyPolicyId,
 	};
 };
 
 const mapDispatchToProps = {
-	acceptPrivacyPolicy: ( privacyPolicyId, privacyPolicyState ) =>
+	acceptPrivacyPolicy: ( privacyPolicyId, privacyPolicyUserStatus ) =>
 		savePreference( PRIVACY_POLICY_PREFERENCE, {
-			...privacyPolicyState,
+			...privacyPolicyUserStatus,
 			[ privacyPolicyId ]: true,
 		} ),
 };
 
-export default connect( mapStateToProps, mapDispatchToProps )(
-	localize( PrivacyPolicyBanner )
-);
+export default connect( mapStateToProps, mapDispatchToProps )( localize( PrivacyPolicyBanner ) );
